@@ -138,7 +138,6 @@ function checkProximityToRunway(pos) {
     return false;
 }
 
-// ---- BULLETPROOF TAXIWAY SURFACES ----
 window.drawTaxiwaySurfaces = function(data) {
     const nodes = {};
     data.elements.forEach(el => { if (el.type === 'node') nodes[el.id] = el; });
@@ -151,7 +150,6 @@ window.drawTaxiwaySurfaces = function(data) {
             element.nodes.forEach(nodeId => {
                 const n = nodes[nodeId];
                 if (n) {
-                    // Prevent identical consecutive coordinates from crashing the geometry engine!
                     if (n.lon !== lastLon || n.lat !== lastLat) {
                         wayCoords.push(n.lon, n.lat);
                         lastLon = n.lon; lastLat = n.lat;
@@ -160,14 +158,31 @@ window.drawTaxiwaySurfaces = function(data) {
             });
 
             if (wayCoords.length >= 4) {
-                // SAFETY NET: Try drawing the asphalt. If this one weird segment breaks, skip it and continue!
+                const positions = window.Cesium.Cartesian3.fromDegreesArray(wayCoords);
+
+                // 1. THE SHOULDERS (Dark Grey - Widest)
                 try {
                     window.twSurfaces.push(window.geofs.api.viewer.entities.add({
                         corridor: {
-                            positions: window.Cesium.Cartesian3.fromDegreesArray(wayCoords),
-                            width: 18.0,
+                            positions: positions,
+                            width: 26.0, // Wider than the main taxiway
                             cornerType: window.Cesium.CornerType.BEVELED,
-                            material: window.Cesium.Color.fromCssColorString('#111111').withAlpha(0.65),
+                            material: window.Cesium.Color.fromCssColorString('#222222').withAlpha(0.6),
+                            clampToGround: true,
+                            classificationType: window.Cesium.ClassificationType.TERRAIN,
+                            zIndex: 0
+                        }
+                    }));
+                } catch(e) {}
+
+                // 2. MAIN TAXIWAY (Lighter Grey)
+                try {
+                    window.twSurfaces.push(window.geofs.api.viewer.entities.add({
+                        corridor: {
+                            positions: positions,
+                            width: 18.0, 
+                            cornerType: window.Cesium.CornerType.BEVELED,
+                            material: window.Cesium.Color.fromCssColorString('#444444').withAlpha(0.7),
                             clampToGround: true,
                             classificationType: window.Cesium.ClassificationType.TERRAIN,
                             zIndex: 1
@@ -175,17 +190,32 @@ window.drawTaxiwaySurfaces = function(data) {
                     }));
                 } catch(e) {}
 
-                // SAFETY NET: Try drawing the paint.
+                // 3. BLACK BORDER FOR LINE
                 try {
                     window.twSurfaces.push(window.geofs.api.viewer.entities.add({
                         corridor: {
-                            positions: window.Cesium.Cartesian3.fromDegreesArray(wayCoords),
-                            width: 0.4,
+                            positions: positions,
+                            width: 0.8, // Slightly wider than the yellow line
                             cornerType: window.Cesium.CornerType.BEVELED,
-                            material: window.Cesium.Color.fromCssColorString('#d4b200').withAlpha(0.35),
+                            material: window.Cesium.Color.BLACK.withAlpha(0.8),
                             clampToGround: true,
                             classificationType: window.Cesium.ClassificationType.TERRAIN,
                             zIndex: 2
+                        }
+                    }));
+                } catch(e) {}
+
+                // 4. YELLOW CENTRE LINE
+                try {
+                    window.twSurfaces.push(window.geofs.api.viewer.entities.add({
+                        corridor: {
+                            positions: positions,
+                            width: 0.4,
+                            cornerType: window.Cesium.CornerType.BEVELED,
+                            material: window.Cesium.Color.fromCssColorString('#d4b200').withAlpha(0.9),
+                            clampToGround: true,
+                            classificationType: window.Cesium.ClassificationType.TERRAIN,
+                            zIndex: 3
                         }
                     }));
                 } catch(e) {}
@@ -193,7 +223,6 @@ window.drawTaxiwaySurfaces = function(data) {
         }
     });
 };
-
 // ---- BULLETPROOF BLUE EDGE LIGHTS ----
 window.getTwD = function(data) {
     const nodes = {};
